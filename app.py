@@ -10,9 +10,9 @@ from io import BytesIO
 from PIL import Image
 
 # src 모듈 import
-sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src'))
 
-from utils import (
+from src.utils import (
     get_gspread_client,
     load_matching_sheet_orders,
     load_excel_products,
@@ -21,9 +21,9 @@ from utils import (
     get_spreadsheet_url,
     batch_update_matching_results
 )
-from matcher import find_matching_products, auto_match_products
-from image_handler import download_and_resize_image, validate_image_url
-from excel_processor import remove_images_from_xlsx
+from src.matcher import find_matching_products, auto_match_products
+from src.image_handler import download_and_resize_image, validate_image_url
+from src.excel_processor import remove_images_from_xlsx
 
 
 # 페이지 설정

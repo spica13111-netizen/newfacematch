@@ -42,18 +42,41 @@ def get_service_account_file(search_dir=None):
 def get_gspread_client():
     """
     gspread 클라이언트 생성
-    Streamlit Cloud에서는 secrets를 사용하고, 로컬에서는 JSON 파일 사용
+    우선순위:
+    1. Cloud Run 환경변수 GCP_SERVICE_ACCOUNT (JSON 문자열 또는 파일 경로)
+    2. Streamlit Cloud secrets
+    3. 로컬 JSON 파일 (config/Google Sheets API.json)
 
     Returns:
         gspread.Client: 인증된 클라이언트
     """
+    import json
+    
     SCOPES = [
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive"
     ]
 
+    # 1) Cloud Run 환경변수에서 Secret 읽기
+    secret_value = os.environ.get('GCP_SERVICE_ACCOUNT')
+    if secret_value:
+        # JSON 문자열인지 확인
+        try:
+            service_account_info = json.loads(secret_value)
+            credentials = service_account.Credentials.from_service_account_info(
+                service_account_info, scopes=SCOPES
+            )
+            return gspread.authorize(credentials)
+        except json.JSONDecodeError:
+            # JSON 파싱 실패 시 파일 경로로 시도
+            if os.path.exists(secret_value):
+                credentials = service_account.Credentials.from_service_account_file(
+                    secret_value, scopes=SCOPES
+                )
+                return gspread.authorize(credentials)
+
+    # 2) Streamlit Cloud secrets 시도
     try:
-        # Streamlit Cloud secrets 시도
         import streamlit as st
         if hasattr(st, 'secrets') and 'gcp_service_account' in st.secrets:
             credentials = service_account.Credentials.from_service_account_info(
@@ -63,7 +86,7 @@ def get_gspread_client():
     except:
         pass
 
-    # 로컬 JSON 파일 사용
+    # 3) 로컬 JSON 파일 사용
     json_path = get_service_account_file()
     if not json_path:
         raise FileNotFoundError("Google API JSON 파일을 찾을 수 없습니다. config 폴더에 'Google Sheets API.json' 파일을 추가하거나 Streamlit Secrets를 설정하세요.")

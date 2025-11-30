@@ -31,8 +31,6 @@ steps:
       - '10'
       - '--port'
       - '8080'
-      - '--set-env-vars'
-      - 'PORT=8080'
       - '--set-secrets'
       - 'GCP_SERVICE_ACCOUNT=gcp-service-account:latest'
 

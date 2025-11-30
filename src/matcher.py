@@ -9,7 +9,7 @@ import re
 def normalize_string(text):
     """
     문자열 정규화 함수
-    - 공백 제거
+    - 공백, 줄바꿈 제거
     - 특수문자 제거
     - 알파벳 소문자로 변환
     - 숫자는 유지
@@ -25,6 +25,9 @@ def normalize_string(text):
 
     text = str(text).strip()
 
+    # 줄바꿈 명시적 제거 (\n, \r, \r\n)
+    text = text.replace('\n', '').replace('\r', '')
+
     # 알파벳을 소문자로 변환
     text = text.lower()
 
@@ -32,6 +35,48 @@ def normalize_string(text):
     text = re.sub(r'[^a-z0-9가-힣]', '', text)
 
     return text
+
+
+def find_column_value_with_similarity(df, row, target_names):
+    """
+    3단계 매칭으로 컬럼 값 찾기 (공급가 전용 헬퍼)
+    1단계: 정확한 매칭
+    2단계: 정규화 매칭
+    3단계: 95% 이상 유사도 매칭
+
+    Args:
+        df: DataFrame
+        row: DataFrame row
+        target_names: 찾을 컬럼명 리스트
+
+    Returns:
+        str: 찾은 값 (없으면 빈 문자열)
+    """
+    if isinstance(target_names, str):
+        target_names = [target_names]
+
+    # 1단계: 정확한 매칭
+    for col in df.columns:
+        if str(col) in target_names:
+            return str(row.get(col, ''))
+
+    # 2단계: 정규화 완전 매칭
+    normalized_targets = [normalize_string(t) for t in target_names]
+    for col in df.columns:
+        normalized_col = normalize_string(str(col))
+        if normalized_col in normalized_targets:
+            return str(row.get(col, ''))
+
+    # 3단계: 95% 이상 유사도 매칭
+    for col in df.columns:
+        normalized_col = normalize_string(str(col))
+        for norm_target in normalized_targets:
+            if norm_target and normalized_col:
+                similarity = fuzz.ratio(normalized_col, norm_target)
+                if similarity >= 95:
+                    return str(row.get(col, ''))
+
+    return ''
 
 
 def find_matching_products(order_product_name, excel_products, top_n=5, threshold=60):
@@ -94,6 +139,11 @@ def find_matching_products(order_product_name, excel_products, top_n=5, threshol
 
             # threshold 이상만 추가
             if similarity >= threshold:
+                # 공급가 3단계 매칭으로 찾기
+                supply_price = find_column_value_with_similarity(
+                    df, row, ['공급가(V+) 배송비 포함', '공급가', '매출']
+                )
+
                 # 옵션 값 찾기 (여러 가능한 컬럼명 시도)
                 option_value = ''
                 for opt_col in ['옵션', 'Option', '규격']:
@@ -106,7 +156,7 @@ def find_matching_products(order_product_name, excel_products, top_n=5, threshol
                     '상품명': excel_product_name,
                     '유사도': round(similarity, 1),
                     '입고가계': str(row.get('입고가계', '')),
-                    '공급가(V+) 배송비 포함': str(row.get('공급가(V+) 배송비 포함', '')),
+                    '공급가(V+) 배송비 포함': supply_price,
                     '운영사': str(row.get('운영사', '')),
                     '대표 1': str(row.get('대표 1', '')),
                     '옵션': option_value

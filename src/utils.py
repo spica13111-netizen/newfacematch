@@ -338,6 +338,7 @@ def batch_update_matching_results(client, sheet_name, matched_results):
         updates = []
         format_requests = []
         soldout_rows = []  # 품절 탭 행 추적
+        option_rows = []  # 옵션 행 추적 (서식 적용용)
         success_count = 0
 
         for result in matched_results:
@@ -356,14 +357,32 @@ def batch_update_matching_results(client, sheet_name, matched_results):
             if row_idx <= len(all_data):
                 current_row_data = all_data[row_idx - 1]
 
+            def clean_number(value):
+                """숫자 값에서 .0 소수점 제거"""
+                if not value or value == '':
+                    return ''
+                try:
+                    # 숫자로 변환 시도
+                    num = float(str(value))
+                    # 정수면 .0 제거
+                    if num.is_integer():
+                        return str(int(num))
+                    return str(value)
+                except:
+                    return str(value)
+
             def safe_add_update(col_name, value):
                 col_idx = matching_columns[col_name]
                 # 0-based index for list access
                 list_idx = col_idx - 1
-                
+
                 # 이미 값이 있는지 확인 (값이 있으면 업데이트 하지 않음)
                 if list_idx < len(current_row_data) and current_row_data[list_idx].strip():
                     return
+
+                # 숫자 필드는 소수점 제거
+                if col_name in ['매칭_매입', '매칭_매출']:
+                    value = clean_number(value)
 
                 updates.append({
                     'range': f'{chr(64 + col_idx)}{row_idx}',
@@ -376,7 +395,24 @@ def batch_update_matching_results(client, sheet_name, matched_results):
             safe_add_update('매칭_매출', data.get('매출', ''))
             safe_add_update('매칭_매입(업체)', data.get('매입(업체)', ''))
             safe_add_update('매칭_탭', tab_name)
-            safe_add_update('매칭_옵션', data.get('옵션', ''))
+
+            # 옵션 처리: 값 없으면 'X', 있으면 원래 값
+            option_value = data.get('옵션', '').strip()
+            if not option_value:
+                safe_add_update('매칭_옵션', 'X')
+                option_rows.append({
+                    'row_idx': row_idx,
+                    'option_col_idx': matching_columns['매칭_옵션'],
+                    'has_value': False  # X 표시
+                })
+            else:
+                safe_add_update('매칭_옵션', option_value)
+                option_rows.append({
+                    'row_idx': row_idx,
+                    'option_col_idx': matching_columns['매칭_옵션'],
+                    'has_value': True  # 값 있음
+                })
+
             safe_add_update('매칭방식', match_type)
 
             # 품절 탭인 경우 서식 요청 추가
@@ -395,6 +431,10 @@ def batch_update_matching_results(client, sheet_name, matched_results):
         # 품절 탭 서식 적용
         if soldout_rows:
             _apply_soldout_formatting(worksheet, soldout_rows, len(headers))
+
+        # 옵션 서식 적용
+        if option_rows:
+            _apply_option_formatting(worksheet, option_rows)
 
         return success_count
 
@@ -476,3 +516,72 @@ def _apply_soldout_formatting(worksheet, soldout_rows, total_columns):
 
     except Exception as e:
         print(f"서식 적용 오류: {str(e)}")
+
+
+def _apply_option_formatting(worksheet, option_rows):
+    """
+    옵션 셀에 서식 적용
+    - 값이 없으면 (X): 흰색 배경
+    - 값이 있으면: 연한 노랑 배경 (#ffffcc)
+    """
+    try:
+        requests = []
+
+        for row_info in option_rows:
+            row_idx = row_info['row_idx'] - 1  # 0-based index
+            option_col_idx = row_info['option_col_idx'] - 1  # 0-based index
+            has_value = row_info['has_value']
+
+            if has_value:
+                # 값이 있으면: 연한 노랑 배경
+                requests.append({
+                    'repeatCell': {
+                        'range': {
+                            'sheetId': worksheet.id,
+                            'startRowIndex': row_idx,
+                            'endRowIndex': row_idx + 1,
+                            'startColumnIndex': option_col_idx,
+                            'endColumnIndex': option_col_idx + 1
+                        },
+                        'cell': {
+                            'userEnteredFormat': {
+                                'backgroundColor': {
+                                    'red': 1.0,
+                                    'green': 1.0,
+                                    'blue': 0.8
+                                }
+                            }
+                        },
+                        'fields': 'userEnteredFormat.backgroundColor'
+                    }
+                })
+            else:
+                # 값이 없으면 (X): 흰색 배경 (기본값이지만 명시적 설정)
+                requests.append({
+                    'repeatCell': {
+                        'range': {
+                            'sheetId': worksheet.id,
+                            'startRowIndex': row_idx,
+                            'endRowIndex': row_idx + 1,
+                            'startColumnIndex': option_col_idx,
+                            'endColumnIndex': option_col_idx + 1
+                        },
+                        'cell': {
+                            'userEnteredFormat': {
+                                'backgroundColor': {
+                                    'red': 1.0,
+                                    'green': 1.0,
+                                    'blue': 1.0
+                                }
+                            }
+                        },
+                        'fields': 'userEnteredFormat.backgroundColor'
+                    }
+                })
+
+        # 서식 적용
+        if requests:
+            worksheet.spreadsheet.batch_update({'requests': requests})
+
+    except Exception as e:
+        print(f"옵션 서식 적용 오류: {str(e)}")

@@ -1,231 +1,249 @@
 # 상품 매칭 프로그램
 
-구글 스프레드시트의 주문 데이터와 엑셀 상품 마스터를 자동 매칭하는 Streamlit 기반 웹 프로그램입니다.
+Google Sheets와 Excel 파일을 연동하여 상품명을 자동으로 매칭하는 Streamlit 기반 웹 프로그램입니다.
 
-## 주요 기능
+## 🚀 빠른 시작
 
-### 1. 자동 상품 매칭 (파이프라인)
-- 구글 스프레드시트에서 실시간으로 주문 데이터 로드
-- 엑셀 파일의 전체 상품 마스터 데이터 로드
-- **2단계 자동 매칭 파이프라인**:
-  1. **100% 일치**: 시트 상품명과 엑셀 상품명이 완전히 일치
-  2. **모델명 100% 일치**: 정규화된 모델명이 시트 상품명에 포함
-- **유사도 기반 수동 매칭**: 자동 매칭 실패 시 상위 3-10개의 유사 상품 추천
+### 📖 가이드 문서
+- **처음 사용자**: `⭐ 처음 사용하기.txt`
+- **빠른 참고**: [문서/Quick_Start.md](문서/Quick_Start.md)
+- **Cloud 배포**: [문서/Cloud_Run_배포_가이드.md](문서/Cloud_Run_배포_가이드.md)
 
-### 2. 이미지 미리보기
-- 각 추천 상품의 이미지를 100x100 크기로 미리보기 제공
-- URL 기반 이미지 자동 다운로드 및 리사이즈
-
-### 3. 구글 시트 자동 업데이트
-- 매칭 완료 시 `[매칭상품]` 탭에 자동 기록
-- 기록 정보:
-  - **상품명**: 엑셀에서 매칭된 정확한 상품명
-  - **매입**: 입고가계
-  - **매출**: 공급가(V+) 배송비 포함
-  - **매입(업체)**: 운영사
-  - **탭**: 엑셀의 어느 탭에서 가져왔는지
-  - **매칭이미지**: 상품 이미지 (100x100)
-  - **매칭방식**: "100%일치", "모델명100%일치", "수동매칭"
-- 이미 값이 있는 행은 건너뛰기 (중복 방지)
-
-### 4. 스프레드시트 실시간 보기
-- 별도 탭에서 구글 스프레드시트 내용 확인
-- 시트1 (주문 데이터) 및 매칭상품 탭 실시간 조회
-
-### 5. 스프레드시트 바로가기
-- 사이드바에서 원클릭으로 구글 스프레드시트 접속
-
-## 사용 방법
-
-### 1. 사전 준비
-
-#### Google API 인증 파일 준비
-1. Google Cloud Console에서 프로젝트 생성
-2. Google Sheets API 및 Google Drive API 활성화
-3. 서비스 계정 생성 후 JSON 키 다운로드
-4. 다운로드한 JSON 파일을 `config/` 폴더에 저장
-5. 구글 스프레드시트를 서비스 계정 이메일과 공유 (편집 권한)
-
-#### 구글 스프레드시트 구조
-스프레드시트 이름: **상품매칭용시트**
-
-**시트1** (주문 데이터):
-```
-발주일자 | 구매일자 | 매입(업체) | 매출(MALL) | 주문자명 | ... | 상품명 | 수량 | 매출 | 배송비 | 매입 | M | 비고
+### 1️⃣ 설치 (처음 한 번만)
+```bash
+💊 패키지 설치.bat
 ```
 
-**매칭상품** 탭 (자동 생성):
-```
-상품명 | 매입 | 매출 | 매입(업체) | 탭 | 매칭이미지 | 매칭방식
+### 2️⃣ 실행 방법
+
+#### 로컬 실행 (PC에서만)
+```bash
+💻 로컬 실행.bat
 ```
 
-#### 엑셀 파일 구조
-- 여러 탭 구조 (예: 가전, 생활용품, 주방용품 등)
-- `[월말재고현황]` 탭은 자동으로 제외됨
-- 각 탭의 1행은 헤더
-
-**필수 컬럼**:
+#### 임시 웹 공유 (ngrok)
+```bash
+🌐 웹으로 시작.bat
 ```
-상품명 | 입고가계 | 공급가(V+) 배송비 포함 | 운영사 | 대표 1 | 모델명
-```
-- **모델명**: 자동 매칭에 사용됨 (선택사항이지만 권장)
+- URL 매번 변경
+- PC 꺼지면 접속 불가
 
-### 2. 설치
+#### 영구 웹 배포 (Google Cloud Run)
+```bash
+배포파일\🚀 Cloud Run 배포.bat
+```
+- 고정 URL
+- 항상 접속 가능
+- 무료 티어 제공
+
+## 📁 폴더 구조
+
+```
+프로젝트/
+├── 💻 로컬 실행.bat           # 로컬 실행
+├── 🌐 웹으로 시작.bat         # ngrok 임시 웹 공유
+├── 💊 패키지 설치.bat         # 패키지 설치
+├── app.py                    # 메인 프로그램
+├── requirements.txt          # 패키지 목록
+├── Dockerfile                # Docker 설정
+├── cloudbuild.yaml           # Cloud Build 설정
+├── config/                   # Google API 설정
+│   └── Google Sheets API.json (보안: gitignore)
+├── src/                      # 소스 코드
+│   ├── utils.py              # Google Sheets/Excel 유틸
+│   ├── matcher.py            # 상품 매칭 로직
+│   ├── image_handler.py      # 이미지 처리
+│   └── excel_processor.py    # Excel 처리
+├── scripts/                  # 배포 스크립트
+│   ├── setup_cloud_build.bat # Cloud Build 설정
+│   └── upload_secret.bat     # Secret Manager 업로드
+├── 배포파일/                 # 배포 관련 파일
+│   └── 🚀 Cloud Run 배포.bat # Cloud Run 수동 배포
+└── 문서/                     # 문서
+    ├── Quick_Start.md        # 빠른 시작 가이드
+    └── Cloud_Run_배포_가이드.md # Cloud 배포 상세
+```
+
+## 📋 주요 기능
+
+### 자동 매칭
+- ✅ **2단계 자동 매칭**: 100% 일치 → 모델명 100% 일치
+- ✅ **Fuzzy matching**: 유사도 기반 추천 (상위 3-10개)
+- ✅ **실시간 업데이트**: Google Sheets 자동 반영
+
+### 데이터 처리
+- ✅ Google Sheets 실시간 연동
+- ✅ 다중 탭 Excel 파일 지원
+- ✅ Excel 이미지 자동 제거 (용량 최적화)
+- ✅ 이미지 URL 미리보기
+
+### 배포 옵션
+- ✅ 로컬 실행
+- ✅ ngrok 임시 웹 공유
+- ✅ Google Cloud Run 영구 배포
+- ✅ GitHub 자동 배포 지원
+
+## 🌐 배포 방법
+
+### 1. 로컬 실행
+```bash
+💻 로컬 실행.bat
+```
+
+### 2. 임시 웹 공유 (ngrok)
+```bash
+🌐 웹으로 시작.bat
+```
+
+### 3. 영구 배포 (Cloud Run)
+상세 가이드: [문서/Cloud_Run_배포_가이드.md](문서/Cloud_Run_배포_가이드.md)
+
+#### 수동 배포
+```bash
+배포파일\🚀 Cloud Run 배포.bat
+```
+
+#### 자동 배포 (GitHub)
+```bash
+git add .
+git commit -m "Update"
+git push origin main
+```
+→ 자동으로 Cloud Run에 배포됨!
+
+## 🔧 설정
+
+### 필수 설정
+1. `config/Google Sheets API.json` 추가
+2. Google Service Account로 스프레드시트 공유
+3. 패키지 설치: `💊 패키지 설치.bat`
+
+### Cloud Run 배포 시 추가 설정
+1. Google Cloud 프로젝트 생성
+2. gcloud CLI 설치
+3. Secret Manager에 인증 정보 업로드
+
+자세한 내용: [문서/Cloud_Run_배포_가이드.md](문서/Cloud_Run_배포_가이드.md)
+
+## ⚡ Cloud Run 빠른 배포 가이드
+
+### 전제 조건
+- Google Cloud 계정 (무료 티어 사용 가능)
+- gcloud CLI 설치: https://cloud.google.com/sdk/docs/install
+
+### 1단계: Google Cloud 설정
 
 ```bash
-# 패키지 설치
-pip install -r requirements.txt
+# gcloud CLI 로그인
+gcloud auth login
+
+# 프로젝트 ID 설정 (콘솔에서 확인)
+gcloud config set project YOUR_PROJECT_ID
+
+# 필요한 API 활성화
+scripts\setup_cloud_build.bat
 ```
 
-### 3. 실행
+### 2단계: Secret Manager 업로드
 
-#### Windows:
 ```bash
-run.bat
+# Google Sheets API JSON을 Secret Manager에 업로드
+scripts\upload_secret.bat
 ```
 
-#### PowerShell:
-```powershell
-.\run.ps1
-```
+입력값:
+- Secret 이름: `gcp-service-account`
+- JSON 파일 경로: `config/Google Sheets API.json`
 
-#### 직접 실행:
+### 3단계: Cloud Shell에서 배포
+
+1. [Google Cloud Console](https://console.cloud.google.com) 접속
+2. Cloud Shell 열기 (화면 우측 상단 터미널 아이콘)
+3. 다음 명령어 실행:
+
 ```bash
-streamlit run app.py
+# 배포 스크립트 다운로드 및 실행
+curl -O https://raw.githubusercontent.com/spica13111-netizen/newfacematch/main/scripts/deploy_from_cloudshell.sh
+chmod +x deploy_from_cloudshell.sh
+./deploy_from_cloudshell.sh
 ```
 
-### 4. 프로그램 사용
+### 4단계: 자동 배포 설정 (선택)
 
-1. **페이지 선택**
-   - 사이드바에서 "상품 매칭" 또는 "스프레드시트 보기" 선택
+GitHub에 푸시할 때 자동으로 배포:
 
-2. **엑셀 파일 업로드**
-   - 사이드바에서 상품 마스터 엑셀 파일 업로드
-   - 자동으로 모든 탭 로드 (`[월말재고현황]` 제외)
-   - 임시 파일은 `temp/` 폴더에 저장 후 자동 삭제
+1. [Cloud Build](https://console.cloud.google.com/cloud-build/triggers) 접속
+2. "트리거 만들기" 클릭
+3. GitHub 저장소 연결: `spica13111-netizen/newfacematch`
+4. 브랜치: `main`
+5. 구성: "Cloud Build 구성 파일" → `cloudbuild.yaml`
+6. 저장
 
-3. **매칭 설정**
-   - 최소 유사도: 50-100% (기본 70%)
-   - 추천 상품 개수: 3-10개 (기본 5개)
+이제 `git push`만 하면 자동 배포! 🚀
 
-4. **자동 매칭**
-   - 프로그램이 자동으로 2단계 매칭 시도:
-     1. 상품명 100% 일치 확인
-     2. 모델명 100% 포함 확인
-   - 자동 매칭 성공 시 바로 구글 시트에 기록
-   - 매칭 방식이 "100%일치" 또는 "모델명100%일치"로 표시됨
+## ❓ 트러블슈팅
 
-5. **수동 매칭** (자동 매칭 실패 시)
-   - 메인 화면에 매칭 대기 중인 주문이 표시됨
-   - 각 주문별로 유사 상품 추천 리스트가 나타남
-   - 이미지를 확인하고 `✅ 매칭하기` 버튼 클릭
-   - 매칭 방식이 "수동매칭"으로 표시됨
+### 🔴 Error: "Dockerfile not found"
+**원인**: Dockerfile이 없거나 잘못된 위치
+**해결**:
+```bash
+# Dockerfile이 있는지 확인
+dir Dockerfile
 
-6. **결과 확인**
-   - 구글 스프레드시트의 `[매칭상품]` 탭에서 확인
-   - 또는 "스프레드시트 보기" 페이지에서 실시간 확인
-   - 매칭된 주문은 자동으로 리스트에서 제거됨
-
-## 기술 스택
-
-- **Streamlit**: 웹 UI 프레임워크
-- **gspread**: 구글 스프레드시트 API 연동
-- **pandas**: 데이터 처리
-- **openpyxl**: 엑셀 파일 읽기
-- **rapidfuzz**: 빠른 문자열 유사도 매칭
-- **Pillow**: 이미지 다운로드 및 리사이즈
-- **requests**: HTTP 요청 (이미지 다운로드)
-
-## 프로젝트 구조
-
-```
-.
-├── app.py                  # 메인 Streamlit 앱
-├── requirements.txt        # 패키지 의존성
-├── run.bat                 # Windows 실행 스크립트
-├── run.ps1                 # PowerShell 실행 스크립트
-├── README.md               # 프로젝트 문서
-├── STRUCTURE.md            # 상세 구조 문서
-├── config/                 # 설정 파일
-│   └── Google Sheets API.json
-└── src/                    # 소스 코드 모듈
-    ├── utils.py            # 구글 시트/엑셀 처리
-    ├── matcher.py          # 유사도 매칭 로직
-    └── image_handler.py    # 이미지 다운로드/처리
+# 없으면 backup에서 복사
+copy Dockerfile.backup Dockerfile
 ```
 
-## 주요 기능 설명
+### 🔴 Cloud Build 타임아웃
+**원인**: 이미지 빌드 시간 초과
+**해결**: `cloudbuild.yaml`에 타임아웃 설정 확인
+```yaml
+timeout: '1800s'  # 30분
+```
 
-### 자동 매칭 파이프라인
-1. **100% 일치**: 시트 상품명과 엑셀 상품명을 문자 그대로 비교
-2. **모델명 100% 일치**:
-   - 시트 상품명과 엑셀 모델명을 정규화 (공백/특수문자 제거, 소문자 변환)
-   - 정규화된 모델명이 정규화된 시트 상품명에 포함되는지 확인
-3. 자동 매칭 성공 시 즉시 구글 시트 업데이트
+### 🔴 Secret Manager 에러
+**원인**: GCP Service Account JSON이 없음
+**해결**:
+```bash
+# Secret 업로드 확인
+gcloud secrets list
 
-### 유사도 매칭 알고리즘
-- **rapidfuzz**의 `token_set_ratio` 사용
-- 단어 순서 무관, 띄어쓰기 무관
-- 오타 허용 (예: "쿨 냉장고" ↔ "쿠ㄹ 냉장고")
-- 유사도 점수 0-100% 계산
+# 재업로드
+scripts\upload_secret.bat
+```
 
-### 문자열 정규화
-- 공백 제거
-- 특수문자 제거
-- 알파벳 소문자 변환
-- 한글, 영문, 숫자만 유지
+### 🔴 포트 연결 실패
+**원인**: Cloud Run 포트 설정 오류
+**해결**: `.streamlit/config.toml`에서 headless 모드 확인
+```toml
+[server]
+headless = true
+```
 
-### 이미지 처리
-1. URL에서 이미지 다운로드
-2. 100x100 픽셀로 자동 리사이즈
-3. JPEG 형식으로 최적화
-4. 구글 시트에 IMAGE 함수로 삽입
+### 🔴 메모리 부족
+**원인**: Excel 파일이 너무 큼
+**해결**: `cloudbuild.yaml`에서 메모리 증가
+```yaml
+- '--memory'
+- '2Gi'  # 1Gi → 2Gi로 변경
+```
 
-### 중복 방지
-- 이미 매칭된 행(상품명이 있는 행)은 건너뛰기
-- 같은 주문을 중복으로 매칭하지 않음
 
-## 문제 해결
+## 🛠️ 기술 스택
 
-### "구글 API 인증 오류"
-- `config/` 폴더에 JSON 파일이 있는지 확인
-- JSON 파일 이름에 "Sheets API" 또는 "Sheet" 포함 권장
-- 서비스 계정 이메일로 스프레드시트 공유 확인
+- **Frontend/Backend**: Streamlit
+- **Google API**: gspread, google-auth
+- **데이터 처리**: pandas, openpyxl
+- **매칭**: rapidfuzz (Fuzzy matching)
+- **이미지**: Pillow, requests
+- **배포**: Docker, Google Cloud Run
+- **CI/CD**: Cloud Build, GitHub
 
-### "스프레드시트를 찾을 수 없습니다"
-- 스프레드시트 이름이 정확히 "상품매칭용시트"인지 확인
-- 서비스 계정과 공유되었는지 확인 (편집 권한)
+## 📞 문의
 
-### "상품명 컬럼을 찾을 수 없습니다"
-- 시트1의 헤더에 "상품명" 컬럼 존재 확인
-- 1행이 헤더인지 확인
+- **GitHub**: https://github.com/spica13111-netizen/newfacematch
+- **Issues**: 버그 리포트 및 기능 제안
 
-### "유사한 상품을 찾지 못했습니다"
-- 최소 유사도 값을 낮춰보세요 (50%까지)
-- 엑셀 파일에 해당 상품이 있는지 확인
-- 엑셀 파일의 "상품명" 컬럼이 있는지 확인
-
-## 버전 정보
-
-- **v3.0** (현재): 자동 매칭 파이프라인 추가
-  - 2단계 자동 매칭 (100% 일치, 모델명 100% 일치)
-  - 문자열 정규화 기능
-  - 매칭 방식 기록
-  - 스프레드시트 실시간 보기
-  - 스프레드시트 바로가기
-  - temp 폴더 관리
-  - 중복 매칭 방지
-
-- **v2.0**: 완전히 새로운 상품 매칭 시스템
-  - 유사도 기반 자동 매칭
-  - 이미지 미리보기 지원
-  - 다중 탭 엑셀 지원
-  - 실시간 구글 시트 업데이트
-
-## 라이선스
+## 📄 라이선스
 
 MIT License
-
-## 지원
-
-문의사항이나 버그 리포트는 개발자에게 문의하세요.

@@ -94,6 +94,13 @@ def find_matching_products(order_product_name, excel_products, top_n=5, threshol
 
             # threshold 이상만 추가
             if similarity >= threshold:
+                # 옵션 값 찾기 (여러 가능한 컬럼명 시도)
+                option_value = ''
+                for opt_col in ['옵션', 'Option', '규격']:
+                    if opt_col in df.columns:
+                        option_value = str(row.get(opt_col, ''))
+                        break
+
                 match_info = {
                     '탭': tab_name,
                     '상품명': excel_product_name,
@@ -101,7 +108,8 @@ def find_matching_products(order_product_name, excel_products, top_n=5, threshol
                     '입고가계': str(row.get('입고가계', '')),
                     '공급가(V+) 배송비 포함': str(row.get('공급가(V+) 배송비 포함', '')),
                     '운영사': str(row.get('운영사', '')),
-                    '대표 1': str(row.get('대표 1', ''))
+                    '대표 1': str(row.get('대표 1', '')),
+                    '옵션': option_value
                 }
                 matches.append(match_info)
 
@@ -196,6 +204,50 @@ def auto_match_products(order_product_name, excel_products):
             if '모델명' in str(col) or 'model' in str(col).lower():
                 model_col = col
                 break
+        
+        # 컬럼 값 가져오기 헬퍼 함수
+        def get_col_value(row, target_names, use_similarity=False):
+            """
+            컬럼 값 가져오기
+            Args:
+                row: DataFrame row
+                target_names: 찾을 컬럼명 리스트
+                use_similarity: True면 3단계 매칭 사용 (공급가 전용)
+            Returns:
+                use_similarity=True: (값, 매칭방식) 튜플
+                use_similarity=False: 값만 반환
+            """
+            if isinstance(target_names, str):
+                target_names = [target_names]
+
+            # 1단계: 정확한 매칭
+            for col in df.columns:
+                if str(col) in target_names:
+                    if use_similarity:
+                        return str(row.get(col, '')), "1단계:정확"
+                    return str(row.get(col, ''))
+
+            # 2단계: 정규화 완전 매칭
+            normalized_targets = [normalize_string(t) for t in target_names]
+            for col in df.columns:
+                normalized_col = normalize_string(str(col))
+                if normalized_col in normalized_targets:
+                    if use_similarity:
+                        return str(row.get(col, '')), "2단계:정규화"
+                    return str(row.get(col, ''))
+
+            # 3단계: 95% 이상 유사도 매칭 (use_similarity=True일 때만)
+            if use_similarity:
+                for col in df.columns:
+                    normalized_col = normalize_string(str(col))
+                    for norm_target in normalized_targets:
+                        if norm_target and normalized_col:
+                            similarity = fuzz.ratio(normalized_col, norm_target)
+                            if similarity >= 95:
+                                return str(row.get(col, '')), f"3단계:유사도{int(similarity)}%"
+                return '', None
+
+            return ''
 
         # 각 상품 확인
         for idx, row in df.iterrows():
@@ -206,38 +258,44 @@ def auto_match_products(order_product_name, excel_products):
 
             excel_product_name = str(excel_product_name).strip()
 
+            # 데이터 추출
+            # 공급가만 3단계 매칭 사용, 나머지는 일반 매칭
+            supply_price, supply_log = get_col_value(row, ['공급가(V+) 배송비 포함', '공급가', '매출'], use_similarity=True)
+            purchase_price = get_col_value(row, ['입고가계', '매입'])
+            vendor = get_col_value(row, ['운영사', '공급사', '업체'])
+            image_url = get_col_value(row, ['대표 1', '이미지', 'Image'])
+            option = get_col_value(row, ['옵션', 'Option', '규격'])
+            model_name = str(row.get(model_col, '')) if model_col else ''
+
+            # 매칭 로그 생성 (공급가에 대해서만)
+            matching_log = {}
+            if supply_log:
+                matching_log['매출(공급가)'] = supply_log
+
+            match_info = {
+                '탭': tab_name,
+                '상품명': excel_product_name,
+                '유사도': 100.0,
+                '입고가계': purchase_price,
+                '공급가(V+) 배송비 포함': supply_price,
+                '운영사': vendor,
+                '대표 1': image_url,
+                '모델명': model_name,
+                '옵션': option,
+                '매칭로그': matching_log
+            }
+
             # 1. 상품명 100% 일치 확인
             if order_product_name == excel_product_name:
-                match_info = {
-                    '탭': tab_name,
-                    '상품명': excel_product_name,
-                    '유사도': 100.0,
-                    '입고가계': str(row.get('입고가계', '')),
-                    '공급가(V+) 배송비 포함': str(row.get('공급가(V+) 배송비 포함', '')),
-                    '운영사': str(row.get('운영사', '')),
-                    '대표 1': str(row.get('대표 1', '')),
-                    '모델명': str(row.get('모델명', '')) if model_col else ''
-                }
                 return match_info, "100%일치"
 
             # 2. 모델명 100% 포함 확인
             if model_col:
-                model_name = row.get(model_col, '')
                 if not pd.isna(model_name) and str(model_name).strip():
                     normalized_model = normalize_string(str(model_name).strip())
 
                     # 정규화된 모델명이 정규화된 시트 상품명에 100% 포함되는지 확인
                     if normalized_model and normalized_model in normalized_order:
-                        match_info = {
-                            '탭': tab_name,
-                            '상품명': excel_product_name,
-                            '유사도': 100.0,
-                            '입고가계': str(row.get('입고가계', '')),
-                            '공급가(V+) 배송비 포함': str(row.get('공급가(V+) 배송비 포함', '')),
-                            '운영사': str(row.get('운영사', '')),
-                            '대표 1': str(row.get('대표 1', '')),
-                            '모델명': str(model_name)
-                        }
                         return match_info, "모델명100%일치"
 
     return None, None

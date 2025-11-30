@@ -4,6 +4,10 @@ temp/
 temp_*.xlsx
 temp_*.xlsxx
 
+# ngrok
+ngrok.exe
+ngrok.zip
+
 # Python 캐시
 __pycache__/
 *.pyc

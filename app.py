@@ -371,13 +371,15 @@ def main():
                     '매입': matched_info['입고가계'],
                     '매출': matched_info['공급가(V+) 배송비 포함'],
                     '매입(업체)': matched_info['운영사'],
-                    '탭': matched_info['탭']
+                    '탭': matched_info['탭'],
+                    '옵션': matched_info.get('옵션', '')
                 }
 
                 auto_match_results.append({
                     'row_index': idx + 2,  # 헤더 제외
                     'data': matched_data,
                     'match_type': match_type,
+                    'matching_log': matched_info.get('매칭로그', {}),
                     'idx': idx
                 })
 
@@ -396,6 +398,17 @@ def main():
 
             if success_count > 0:
                 st.success(f"✅ 자동 매칭 완료: {success_count}개 상품")
+
+                # 매칭 상세 로그 표시
+                with st.expander("🔍 자동 매칭 상세 로그"):
+                    for result in auto_match_results:
+                        matching_log = result.get('matching_log', {})
+                        if matching_log:
+                            st.markdown(f"**{result['data']['상품명']}** ({result['match_type']})")
+                            for field, method in matching_log.items():
+                                st.text(f"  • {field}: {method}")
+                            st.markdown("---")
+
                 st.rerun()
 
     # 매칭 안 된 주문만 필터링
@@ -481,7 +494,8 @@ def main():
                             '매입': match['입고가계'],
                             '매출': match['공급가(V+) 배송비 포함'],
                             '매입(업체)': match['운영사'],
-                            '탭': match['탭']
+                            '탭': match['탭'],
+                            '옵션': match.get('옵션', '')
                         }
 
                         # 스프레드시트 업데이트 (idx + 2: 헤더 제외)

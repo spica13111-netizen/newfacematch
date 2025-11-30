@@ -307,6 +307,7 @@ def batch_update_matching_results(client, sheet_name, matched_results):
             '매칭_매출': None,
             '매칭_매입(업체)': None,
             '매칭_탭': None,
+            '매칭_옵션': None,
             '매칭방식': None
         }
 
@@ -350,42 +351,33 @@ def batch_update_matching_results(client, sheet_name, matched_results):
             match_type = result.get('match_type', '수동매칭')
             tab_name = data.get('탭', '')
 
-            # 각 컬럼별로 업데이트
-            col_idx = matching_columns['매칭상품_상품명']
-            updates.append({
-                'range': f'{chr(64 + col_idx)}{row_idx}',
-                'values': [[data.get('상품명', '')]]
-            })
+            # 현재 행의 데이터 가져오기 (안전한 인덱싱)
+            current_row_data = []
+            if row_idx <= len(all_data):
+                current_row_data = all_data[row_idx - 1]
 
-            col_idx = matching_columns['매칭_매입']
-            updates.append({
-                'range': f'{chr(64 + col_idx)}{row_idx}',
-                'values': [[data.get('매입', '')]]
-            })
+            def safe_add_update(col_name, value):
+                col_idx = matching_columns[col_name]
+                # 0-based index for list access
+                list_idx = col_idx - 1
+                
+                # 이미 값이 있는지 확인 (값이 있으면 업데이트 하지 않음)
+                if list_idx < len(current_row_data) and current_row_data[list_idx].strip():
+                    return
 
-            col_idx = matching_columns['매칭_매출']
-            updates.append({
-                'range': f'{chr(64 + col_idx)}{row_idx}',
-                'values': [[data.get('매출', '')]]
-            })
+                updates.append({
+                    'range': f'{chr(64 + col_idx)}{row_idx}',
+                    'values': [[value]]
+                })
 
-            col_idx = matching_columns['매칭_매입(업체)']
-            updates.append({
-                'range': f'{chr(64 + col_idx)}{row_idx}',
-                'values': [[data.get('매입(업체)', '')]]
-            })
-
-            col_idx = matching_columns['매칭_탭']
-            updates.append({
-                'range': f'{chr(64 + col_idx)}{row_idx}',
-                'values': [[tab_name]]
-            })
-
-            col_idx = matching_columns['매칭방식']
-            updates.append({
-                'range': f'{chr(64 + col_idx)}{row_idx}',
-                'values': [[match_type]]
-            })
+            # 각 컬럼별로 업데이트 (값이 없는 경우에만)
+            safe_add_update('매칭상품_상품명', data.get('상품명', ''))
+            safe_add_update('매칭_매입', data.get('매입', ''))
+            safe_add_update('매칭_매출', data.get('매출', ''))
+            safe_add_update('매칭_매입(업체)', data.get('매입(업체)', ''))
+            safe_add_update('매칭_탭', tab_name)
+            safe_add_update('매칭_옵션', data.get('옵션', ''))
+            safe_add_update('매칭방식', match_type)
 
             # 품절 탭인 경우 서식 요청 추가
             if '품절' in tab_name:
